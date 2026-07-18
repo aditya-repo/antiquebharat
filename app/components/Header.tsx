@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { SearchIcon, UserIcon } from "@/app/components/icons/HeaderIcons";
 import { MandalaIcon } from "@/app/components/icons/MandalaIcon";
@@ -42,10 +42,7 @@ function MenuIcon({ open }: { open: boolean }) {
 }
 
 export function Header() {
-  const headerRef = useRef<HTMLElement>(null);
-  const lastScrollY = useRef(0);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [stuck, setStuck] = useState(false);
 
   useEffect(() => {
     document.body.style.overflow = menuOpen ? "hidden" : "";
@@ -71,41 +68,9 @@ export function Header() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [menuOpen]);
 
-  useEffect(() => {
-    lastScrollY.current = window.scrollY;
-
-    const onScroll = () => {
-      const currentY = window.scrollY;
-      const delta = currentY - lastScrollY.current;
-      const headerHeight = headerRef.current?.offsetHeight ?? 120;
-
-      if (menuOpen) {
-        setStuck(currentY > headerHeight);
-        lastScrollY.current = currentY;
-        return;
-      }
-
-      if (currentY <= headerHeight) {
-        setStuck(false);
-      } else if (delta < -4) {
-        setStuck(true);
-      } else if (delta > 4) {
-        setStuck(false);
-      }
-
-      lastScrollY.current = currentY;
-    };
-
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, [menuOpen]);
-
   return (
     <>
-      <header
-        ref={headerRef}
-        className={stuck ? "site-header is-stuck" : "site-header"}
-      >
+      <header className="site-header">
         <div className="announcement-bar">
           <MandalaIcon className="announcement-bar__icon" />
           <p className="announcement-bar__text">

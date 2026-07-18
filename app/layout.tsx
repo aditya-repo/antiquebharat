@@ -5,6 +5,7 @@ import { Header } from "@/app/components/Header";
 import { JhumarDecor } from "@/app/components/JhumarDecor";
 import { MobileBottomNav } from "@/app/components/MobileBottomNav";
 import { SiteFooter } from "@/app/components/SiteFooter";
+import { TabPageTransition } from "@/app/components/TabPageTransition";
 
 import "./globals.css";
 
@@ -35,8 +36,10 @@ export default function RootLayout({
       <body className="min-h-full">
         <JhumarDecor />
         <Header />
-        {children}
-        <SiteFooter />
+        <TabPageTransition>
+          {children}
+          <SiteFooter />
+        </TabPageTransition>
         <MobileBottomNav />
       </body>
     </html>
