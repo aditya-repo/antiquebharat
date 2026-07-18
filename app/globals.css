@@ -4522,61 +4522,36 @@ main.not-found-page {
   .tab-page-shell {
     position: relative;
     width: 100%;
+    will-change: transform;
     background-color: #fffaf2;
     background-image: url("./assets/elements/image.png");
     background-repeat: repeat;
     background-size: 72px auto;
   }
 
-  .tab-swipe-outgoing,
-  .tab-swipe-peek {
+  .tab-page-shell.is-incoming {
+    z-index: 1;
+  }
+
+  .tab-swipe-outgoing {
     display: none;
     pointer-events: none;
   }
 
-  .tab-swipe-outgoing.is-visible,
-  .tab-swipe-peek.is-visible {
+  .tab-swipe-outgoing.is-visible {
     display: block;
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     bottom: calc(3.75rem + env(safe-area-inset-bottom, 0px));
-    overflow: hidden;
-    will-change: transform;
-  }
-
-  .tab-swipe-outgoing.is-visible {
     z-index: 3;
+    overflow: hidden;
     background-color: #fffaf2;
     background-image: url("./assets/elements/image.png");
     background-repeat: repeat;
     background-size: 72px auto;
-  }
-
-  .tab-swipe-peek.is-visible {
-    z-index: 2;
-    background-color: #fffaf2;
-    background-image: url("./assets/elements/image.png");
-    background-repeat: repeat;
-    background-size: 72px auto;
-  }
-
-  .tab-swipe-peek__panel {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
-  }
-
-  .tab-swipe-peek__label {
-    color: var(--brown-muted);
-    font-family: var(--font-cinzel), Georgia, serif;
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
+    will-change: transform;
   }
 
   .tab-swipe-layer__scroller,
