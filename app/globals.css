@@ -439,7 +439,7 @@ main {
   }
 
   .header-main__inner {
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     gap: 0.65rem;
   }
@@ -4514,70 +4514,49 @@ main.not-found-page {
     overflow-x: clip;
   }
 
-  .tab-page-viewport.is-pairing {
+  .tab-page-viewport.is-swiping {
     overflow: hidden;
+    touch-action: pan-y;
   }
 
   .tab-page-shell {
     position: relative;
+    width: 100%;
     will-change: transform;
+    background-color: #fffaf2;
+    background-image: url("./assets/elements/image.png");
+    background-repeat: repeat;
+    background-size: 72px auto;
   }
 
-  .tab-page-shell.is-dragging > * {
-    pointer-events: none;
+  .tab-page-shell.is-incoming {
+    position: relative;
+    z-index: 1;
   }
 
-  /* Park incoming off-screen before dual slide */
-  .tab-page-shell--park-left {
-    transform: translate3d(100%, 0, 0) !important;
-    transition: none !important;
-  }
-
-  .tab-page-shell--park-right {
-    transform: translate3d(-100%, 0, 0) !important;
-    transition: none !important;
-  }
-
-  .tab-page-shell.is-sliding-in {
-    transition: transform 0.38s cubic-bezier(0.32, 0.72, 0, 1) !important;
-    transform: translate3d(0, 0, 0) !important;
-  }
-
-  .tab-page-outgoing-host {
+  .tab-swipe-outgoing {
     display: none;
     pointer-events: none;
   }
 
-  .tab-page-outgoing-host.is-active {
+  .tab-swipe-outgoing.is-visible {
     display: block;
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     bottom: calc(3.75rem + env(safe-area-inset-bottom, 0px));
-    z-index: 160;
+    z-index: 2;
     overflow: hidden;
     background-color: #fffaf2;
     background-image: url("./assets/elements/image.png");
     background-repeat: repeat;
     background-size: 72px auto;
-    transform: translate3d(0, 0, 0);
+    will-change: transform;
   }
 
-  .tab-page-outgoing-host.is-sliding {
-    transition: transform 0.38s cubic-bezier(0.32, 0.72, 0, 1);
-  }
-
-  .tab-page-outgoing-host--left.is-sliding {
-    transform: translate3d(-100%, 0, 0);
-  }
-
-  .tab-page-outgoing-host--right.is-sliding {
-    transform: translate3d(100%, 0, 0);
-  }
-
-  .tab-page-outgoing__scroller,
-  .tab-page-outgoing__clone {
+  .tab-swipe-layer__scroller,
+  .tab-swipe-layer__clone {
     width: 100%;
   }
 }

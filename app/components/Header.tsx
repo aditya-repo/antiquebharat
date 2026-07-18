@@ -81,17 +81,6 @@ export function Header() {
 
         <div className="header-main">
           <div className="header-main__inner">
-            <button
-              type="button"
-              className="header-menu-btn"
-              aria-label={menuOpen ? "Close menu" : "Open menu"}
-              aria-expanded={menuOpen}
-              aria-controls="mobile-nav"
-              onClick={() => setMenuOpen((open) => !open)}
-            >
-              <MenuIcon open={menuOpen} />
-            </button>
-
             <div className="header-brand">
               <Link href="/" className="header-brand__name">
                 ANTIQUE BHARAT
@@ -140,6 +129,17 @@ export function Header() {
                   >
                     <UserIcon className="header-icon-btn__icon" />
                   </Link>
+
+                  <button
+                    type="button"
+                    className="header-menu-btn"
+                    aria-label={menuOpen ? "Close menu" : "Open menu"}
+                    aria-expanded={menuOpen}
+                    aria-controls="mobile-nav"
+                    onClick={() => setMenuOpen((open) => !open)}
+                  >
+                    <MenuIcon open={menuOpen} />
+                  </button>
                 </div>
               </div>
             </div>

@@ -31,24 +31,32 @@ const CAROUSEL_SELECTOR = [
   "[data-carousel]",
 ].join(",");
 
-const SWIPE_MIN_DISTANCE = 64;
-const SWIPE_MIN_VELOCITY = 0.45;
+const LOCK_PX = 10;
+const START_NAV_PX = 28;
+const COMMIT_PX = 72;
+const COMMIT_RATIO = 0.18;
+const SETTLE_MS = 280;
 const MOBILE_QUERY = "(max-width: 1100px)";
-const SETTLE_MS = 320;
 
 type TabPageTransitionProps = {
   children: ReactNode;
 };
 
+type DragDirection = "left" | "right";
+
 type TouchState = {
   x: number;
   y: number;
-  time: number;
   ignore: boolean;
   locked: "none" | "h" | "v";
 };
 
-type DragDirection = "left" | "right";
+type Session = {
+  direction: DragDirection;
+  fromPath: string;
+  toHref: string;
+  originX: number;
+};
 
 function isInsideCarousel(target: EventTarget | null) {
   return target instanceof Element && Boolean(target.closest(CAROUSEL_SELECTOR));
@@ -58,61 +66,43 @@ function isMobileViewport() {
   return typeof window !== "undefined" && window.matchMedia(MOBILE_QUERY).matches;
 }
 
-function setTabSlideDirection(direction: DragDirection) {
-  try {
-    sessionStorage.setItem("mobile-tab-slide", direction);
-  } catch {
-    /* ignore */
-  }
-}
-
 export function TabPageTransition({ children }: TabPageTransitionProps) {
   const pathname = usePathname();
   const router = useRouter();
+
   const shellRef = useRef<HTMLDivElement>(null);
   const outgoingRef = useRef<HTMLDivElement>(null);
-  const touchStart = useRef<TouchState | null>(null);
+  const touchRef = useRef<TouchState | null>(null);
+  const sessionRef = useRef<Session | null>(null);
   const dragXRef = useRef(0);
-  const directionRef = useRef<DragDirection | null>(null);
-  const busyRef = useRef(false);
-  const pendingHref = useRef<string | null>(null);
-  const previousPath = useRef(pathname);
   const widthRef = useRef(0);
+  const settlingRef = useRef(false);
+  const tapCommitRef = useRef(false);
+  const previousPath = useRef(pathname);
 
   const [dragX, setDragX] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [settling, setSettling] = useState(false);
-  const [direction, setDirection] = useState<DragDirection | null>(null);
-  const [hasOutgoing, setHasOutgoing] = useState(false);
-  const [awaitingRoute, setAwaitingRoute] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
+  const [outgoingReady, setOutgoingReady] = useState(false);
+  const [routeReady, setRouteReady] = useState(false);
 
-  const getWidth = () => {
-    if (!widthRef.current) {
-      widthRef.current = window.innerWidth || 1;
-    }
+  const width = () => {
+    if (!widthRef.current) widthRef.current = window.innerWidth || 1;
     return widthRef.current;
-  };
-
-  const resetDrag = () => {
-    dragXRef.current = 0;
-    directionRef.current = null;
-    setDragX(0);
-    setDragging(false);
-    setSettling(false);
-    setDirection(null);
   };
 
   const clearOutgoing = () => {
     const host = outgoingRef.current;
-    if (!host) return;
-    host.innerHTML = "";
-    setHasOutgoing(false);
+    if (host) host.innerHTML = "";
+    setOutgoingReady(false);
   };
 
-  const ensureOutgoingClone = () => {
+  const captureOutgoing = () => {
     const shell = shellRef.current;
     const host = outgoingRef.current;
-    if (!shell || !host || host.childElementCount > 0) return;
+    if (!shell || !host) return;
+    host.innerHTML = "";
 
     const scroller = document.createElement("div");
     scroller.className = "tab-swipe-layer__scroller";
@@ -123,76 +113,60 @@ export function TabPageTransition({ children }: TabPageTransitionProps) {
     clone.removeAttribute("style");
     scroller.appendChild(clone);
     host.appendChild(scroller);
-    setHasOutgoing(true);
+    setOutgoingReady(true);
   };
 
-  const targetHrefForDirection = (dir: DragDirection) => {
-    const currentIndex = getMobileTabIndex(pathname);
-    if (currentIndex < 0) return null;
-    const nextIndex = dir === "left" ? currentIndex + 1 : currentIndex - 1;
-    if (nextIndex < 0 || nextIndex >= MOBILE_TABS.length) return null;
-    return MOBILE_TABS[nextIndex].href;
+  const hrefFor = (fromPath: string, dir: DragDirection) => {
+    const index = getMobileTabIndex(fromPath);
+    if (index < 0) return null;
+    const next = dir === "left" ? index + 1 : index - 1;
+    if (next < 0 || next >= MOBILE_TABS.length) return null;
+    return MOBILE_TABS[next].href;
   };
 
-  const finishToRoute = (href: string, dir: DragDirection) => {
-    if (busyRef.current) return;
-    busyRef.current = true;
-    pendingHref.current = href;
-    setTabSlideDirection(dir);
-    setAwaitingRoute(true);
-    router.push(href);
-  };
-
-  const settleCommit = (dir: DragDirection, href: string) => {
-    const width = getWidth();
-    const endX = dir === "left" ? -width : width;
-    setDragging(false);
-    setSettling(true);
-    setDirection(dir);
-    dragXRef.current = endX;
-    setDragX(endX);
-
-    window.setTimeout(() => {
-      finishToRoute(href, dir);
-    }, SETTLE_MS);
-  };
-
-  const settleCancel = () => {
-    setDragging(false);
-    setSettling(true);
+  const resetAll = () => {
+    sessionRef.current = null;
     dragXRef.current = 0;
+    settlingRef.current = false;
+    setSession(null);
     setDragX(0);
-
-    window.setTimeout(() => {
-      clearOutgoing();
-      resetDrag();
-      busyRef.current = false;
-      pendingHref.current = null;
-    }, SETTLE_MS);
+    setDragging(false);
+    setSettling(false);
+    setRouteReady(false);
+    clearOutgoing();
   };
 
-  // After navigation, drop the clone and reveal the real new page in place
+  const applyDrag = (x: number) => {
+    dragXRef.current = x;
+    setDragX(x);
+  };
+
+  // When route arrives mid-swipe, keep both layers synced to current finger offset
   useLayoutEffect(() => {
     if (previousPath.current === pathname) return;
+    const active = sessionRef.current;
     previousPath.current = pathname;
 
-    if (!awaitingRoute || !pendingHref.current) {
-      clearOutgoing();
-      resetDrag();
-      busyRef.current = false;
-      setAwaitingRoute(false);
+    if (!active) {
+      resetAll();
       return;
     }
 
-    window.scrollTo(0, 0);
-    clearOutgoing();
-    resetDrag();
-    busyRef.current = false;
-    pendingHref.current = null;
-    setAwaitingRoute(false);
-  }, [pathname, awaitingRoute]);
+    // Landed on the intended page while dragging / settling
+    if (pathname === active.toHref || pathname.startsWith(`${active.toHref}/`)) {
+      window.scrollTo(0, 0);
+      setRouteReady(true);
+      if (tapCommitRef.current) {
+        tapCommitRef.current = false;
+        requestAnimationFrame(() => completeCommit());
+      }
+      return;
+    }
 
-  // Prefetch neighbors for snappier swaps
+    // Unexpected route
+    resetAll();
+  }, [pathname]);
+
   useEffect(() => {
     const index = getMobileTabIndex(pathname);
     if (index < 0) return;
@@ -201,16 +175,99 @@ export function TabPageTransition({ children }: TabPageTransitionProps) {
   }, [pathname, router]);
 
   useEffect(() => {
+    const node = document.querySelector(".tab-page-viewport");
+    if (!node) return;
+
+    const onMove = (event: TouchEvent) => {
+      const start = touchRef.current;
+      if (!start || start.ignore || start.locked !== "h") return;
+      event.preventDefault();
+    };
+
+    node.addEventListener("touchmove", onMove, { passive: false });
+    return () => node.removeEventListener("touchmove", onMove);
+  }, []);
+
+  const beginSession = (dir: DragDirection, originX: number) => {
+    const toHref = hrefFor(pathname, dir);
+    if (!toHref || sessionRef.current) return false;
+
+    widthRef.current = window.innerWidth;
+    if (!outgoingRef.current?.childElementCount) {
+      captureOutgoing();
+    }
+
+    const next: Session = {
+      direction: dir,
+      fromPath: pathname,
+      toHref,
+      originX,
+    };
+    sessionRef.current = next;
+    setSession(next);
+    router.prefetch(toHref);
+    router.push(toHref);
+    return true;
+  };
+
+  const completeCommit = () => {
+    const active = sessionRef.current;
+    if (!active || settlingRef.current) return;
+    settlingRef.current = true;
+    setDragging(false);
+    setSettling(true);
+
+    const end = active.direction === "left" ? -width() : width();
+    applyDrag(end);
+
+    window.setTimeout(() => {
+      clearOutgoing();
+      sessionRef.current = null;
+      setSession(null);
+      setRouteReady(false);
+      applyDrag(0);
+      setSettling(false);
+      settlingRef.current = false;
+      setDragging(false);
+      window.scrollTo(0, 0);
+    }, SETTLE_MS);
+  };
+
+  const completeCancel = () => {
+    const active = sessionRef.current;
+    if (settlingRef.current) return;
+    settlingRef.current = true;
+    setDragging(false);
+    setSettling(true);
+    applyDrag(0);
+
+    window.setTimeout(() => {
+      const from = active?.fromPath;
+      clearOutgoing();
+      sessionRef.current = null;
+      setSession(null);
+      setRouteReady(false);
+      setSettling(false);
+      settlingRef.current = false;
+      setDragging(false);
+      applyDrag(0);
+      if (from && pathname !== from) {
+        router.push(from);
+      }
+    }, SETTLE_MS);
+  };
+
+  // Tab bar clicks — animate both pages from center
+  useEffect(() => {
     const onClickCapture = (event: MouseEvent) => {
       const target = event.target;
       if (!(target instanceof Element)) return;
       const tab = target.closest("a.mobile-tab-bar__tab");
       if (!(tab instanceof HTMLAnchorElement)) return;
-      if (!isMobileViewport() || busyRef.current) return;
+      if (!isMobileViewport() || sessionRef.current || settlingRef.current) return;
 
       const href = tab.getAttribute("href");
       if (!href || href === pathname) return;
-
       const nextIndex = getMobileTabIndex(href);
       const currentIndex = getMobileTabIndex(pathname);
       if (nextIndex < 0 || currentIndex < 0 || nextIndex === currentIndex) return;
@@ -220,13 +277,19 @@ export function TabPageTransition({ children }: TabPageTransitionProps) {
 
       const dir: DragDirection = nextIndex > currentIndex ? "left" : "right";
       widthRef.current = window.innerWidth;
-      ensureOutgoingClone();
-      setDirection(dir);
-      directionRef.current = dir;
-      // Start from 0 and animate both layers to completion
-      dragXRef.current = 0;
-      setDragX(0);
-      requestAnimationFrame(() => settleCommit(dir, href));
+      captureOutgoing();
+      const next: Session = {
+        direction: dir,
+        fromPath: pathname,
+        toHref: href,
+        originX: 0,
+      };
+      sessionRef.current = next;
+      setSession(next);
+      applyDrag(0);
+      setDragging(false);
+      tapCommitRef.current = true;
+      router.push(href);
     };
 
     document.addEventListener("click", onClickCapture, true);
@@ -235,8 +298,13 @@ export function TabPageTransition({ children }: TabPageTransitionProps) {
   }, [pathname]);
 
   const onTouchStart = (event: ReactTouchEvent<HTMLDivElement>) => {
-    if (!isMobileViewport() || busyRef.current || settling) {
-      touchStart.current = null;
+    if (!isMobileViewport() || settlingRef.current) {
+      touchRef.current = null;
+      return;
+    }
+    // If a session is already active, allow continuing? Prefer fresh gesture only when idle
+    if (sessionRef.current && !dragging) {
+      touchRef.current = null;
       return;
     }
 
@@ -244,18 +312,17 @@ export function TabPageTransition({ children }: TabPageTransitionProps) {
     if (!touch) return;
 
     widthRef.current = window.innerWidth;
-    touchStart.current = {
+    touchRef.current = {
       x: touch.clientX,
       y: touch.clientY,
-      time: performance.now(),
       ignore: isInsideCarousel(event.target),
       locked: "none",
     };
   };
 
   const onTouchMove = (event: ReactTouchEvent<HTMLDivElement>) => {
-    const start = touchStart.current;
-    if (!start || start.ignore || busyRef.current) return;
+    const start = touchRef.current;
+    if (!start || start.ignore || settlingRef.current) return;
 
     const touch = event.changedTouches[0];
     if (!touch) return;
@@ -264,157 +331,140 @@ export function TabPageTransition({ children }: TabPageTransitionProps) {
     const deltaY = touch.clientY - start.y;
 
     if (start.locked === "none") {
-      if (Math.abs(deltaX) < 8 && Math.abs(deltaY) < 8) return;
+      if (Math.abs(deltaX) < LOCK_PX && Math.abs(deltaY) < LOCK_PX) return;
       start.locked = Math.abs(deltaX) > Math.abs(deltaY) * 1.15 ? "h" : "v";
-      touchStart.current = start;
+      touchRef.current = start;
       if (start.locked === "h") {
-        ensureOutgoingClone();
+        // Freeze the current page immediately so both layers can move with the finger
+        widthRef.current = window.innerWidth;
+        captureOutgoing();
       }
     }
 
     if (start.locked !== "h") return;
 
-    // Prevent vertical scroll while horizontally swiping pages
-    event.preventDefault();
-
-    const currentIndex = getMobileTabIndex(pathname);
+    const dir: DragDirection = deltaX < 0 ? "left" : "right";
+    const currentIndex = getMobileTabIndex(
+      sessionRef.current?.fromPath ?? pathname,
+    );
     if (currentIndex < 0) return;
 
-    let nextX = deltaX;
-    let dir: DragDirection | null = deltaX < 0 ? "left" : deltaX > 0 ? "right" : null;
+    const blocked =
+      (dir === "left" && currentIndex >= MOBILE_TABS.length - 1) ||
+      (dir === "right" && currentIndex <= 0);
 
-    // Edge rubber-band when no page in that direction
-    if (dir === "left" && currentIndex >= MOBILE_TABS.length - 1) {
-      nextX = deltaX * 0.22;
-      dir = "left";
-    } else if (dir === "right" && currentIndex <= 0) {
-      nextX = deltaX * 0.22;
-      dir = "right";
+    if (!sessionRef.current && !blocked && Math.abs(deltaX) >= START_NAV_PX) {
+      beginSession(dir, start.x);
     }
 
-    if (dir) {
-      const href = targetHrefForDirection(dir);
-      if (href) router.prefetch(href);
-      directionRef.current = dir;
-      setDirection(dir);
+    let x = deltaX;
+    if (blocked && !sessionRef.current) {
+      x = deltaX * 0.2;
+    } else {
+      const w = width();
+      x = Math.max(-w, Math.min(w, deltaX));
     }
 
-    // Clamp to one screen width
-    const width = getWidth();
-    nextX = Math.max(-width, Math.min(width, nextX));
+    // If session direction conflicts with reverse drag past center, allow cancel path
+    const active = sessionRef.current;
+    if (active && Math.sign(x) !== (active.direction === "left" ? -1 : 1)) {
+      // User dragged back toward origin
+      x = Math.max(-width() * 0.15, Math.min(width() * 0.15, x));
+    }
 
-    dragXRef.current = nextX;
     setDragging(true);
-    setSettling(false);
-    setDragX(nextX);
+    applyDrag(x);
   };
 
   const onTouchEnd = () => {
-    const start = touchStart.current;
-    const currentDrag = dragXRef.current;
-    const dir = directionRef.current;
-    touchStart.current = null;
-
-    if (!start || start.ignore || start.locked !== "h" || busyRef.current) {
-      if (!busyRef.current) settleCancel();
+    const start = touchRef.current;
+    touchRef.current = null;
+    if (!start || start.ignore || start.locked !== "h" || settlingRef.current) {
       return;
     }
 
-    const width = getWidth();
-    const elapsed = Math.max(1, performance.now() - start.time);
-    const velocity = Math.abs(currentDrag) / elapsed;
-    const shouldCommit =
-      Boolean(dir) &&
-      (Math.abs(currentDrag) >= SWIPE_MIN_DISTANCE ||
-        velocity >= SWIPE_MIN_VELOCITY) &&
-      Math.abs(currentDrag) > width * 0.12;
+    const active = sessionRef.current;
+    const x = dragXRef.current;
+    const w = width();
 
-    if (!shouldCommit || !dir) {
-      settleCancel();
+    if (!active) {
+      // Never started nav — just spring back
+      setDragging(false);
+      setSettling(true);
+      applyDrag(0);
+      window.setTimeout(() => {
+        setSettling(false);
+        clearOutgoing();
+      }, SETTLE_MS);
       return;
     }
 
-    const href = targetHrefForDirection(dir);
-    // Rubber-banded edge with no target
-    if (!href || Math.abs(currentDrag) < width * 0.08) {
-      settleCancel();
-      return;
+    const traveled = Math.abs(x);
+    const commit =
+      traveled >= COMMIT_PX || traveled >= w * COMMIT_RATIO;
+
+    if (commit && Math.sign(x) === (active.direction === "left" ? -1 : 1)) {
+      completeCommit();
+    } else {
+      completeCancel();
     }
-
-    settleCommit(dir, href);
   };
 
-  // Incoming (real current shell during drag is still OLD page under clone).
-  // Outgoing clone tracks dragX.
-  // Peek panel represents the next page and moves in from the side.
-  const width = typeof window !== "undefined" ? getWidth() : 0;
-  const peekX =
-    direction === "left"
-      ? width + dragX
-      : direction === "right"
-        ? -width + dragX
-        : width;
+  const active = session;
+  const interactive = Boolean(active || dragging || settling || outgoingReady);
 
-  const outgoingStyle: CSSProperties = {
-    transform: `translate3d(${dragX}px, 0, 0)`,
-    transition: dragging
-      ? "none"
-      : `transform ${SETTLE_MS}ms cubic-bezier(0.32, 0.72, 0, 1)`,
-  };
+  const transition = dragging
+    ? "none"
+    : `transform ${SETTLE_MS}ms cubic-bezier(0.32, 0.72, 0, 1)`;
 
-  const peekStyle: CSSProperties = {
-    transform: `translate3d(${direction ? peekX : width}px, 0, 0)`,
-    transition: dragging
-      ? "none"
-      : `transform ${SETTLE_MS}ms cubic-bezier(0.32, 0.72, 0, 1)`,
-    opacity: direction && (dragging || settling || Math.abs(dragX) > 0) ? 1 : 0,
-  };
+  const outgoingStyle: CSSProperties | undefined = outgoingReady
+    ? { transform: `translate3d(${dragX}px, 0, 0)`, transition }
+    : undefined;
 
-  const activeSwipe = hasOutgoing && direction && (dragging || settling || Math.abs(dragX) > 1);
+  // Incoming real page sits to the side and follows the same finger delta
+  const showIncoming = Boolean(active && routeReady);
+  const incomingOffset = showIncoming
+    ? active!.direction === "left"
+      ? width() + dragX
+      : -width() + dragX
+    : 0;
+
+  const incomingStyle: CSSProperties | undefined = showIncoming
+    ? {
+        transform: `translate3d(${incomingOffset}px, 0, 0)`,
+        transition,
+      }
+    : outgoingReady
+      ? { visibility: "hidden" }
+      : undefined;
 
   return (
     <div
       className={
-        activeSwipe
-          ? `tab-page-viewport is-swiping is-swiping--${direction}`
+        interactive
+          ? `tab-page-viewport is-swiping is-swiping--${active?.direction ?? "left"}`
           : "tab-page-viewport"
       }
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      onTouchCancel={onTouchEnd}
     >
-      {/* Next/prev page panel — moves with finger */}
-      <div
-        className="tab-swipe-peek"
-        style={peekStyle}
-        aria-hidden
-      >
-        <div className="tab-swipe-peek__inner" />
-      </div>
-
-      {/* Current page clone — moves with finger */}
       <div
         ref={outgoingRef}
         className={
-          hasOutgoing
-            ? "tab-swipe-outgoing is-visible"
-            : "tab-swipe-outgoing"
+          outgoingReady ? "tab-swipe-outgoing is-visible" : "tab-swipe-outgoing"
         }
-        style={hasOutgoing ? outgoingStyle : undefined}
+        style={outgoingStyle}
         aria-hidden
       />
 
-      {/* Live page (stays put under layers during swipe; revealed after route change) */}
       <div
         ref={shellRef}
-        className={[
-          "tab-page-shell",
-          activeSwipe ? "is-covered" : "",
-          awaitingRoute ? "is-awaiting" : "",
-        ]
+        className={["tab-page-shell", showIncoming ? "is-incoming" : ""]
           .filter(Boolean)
           .join(" ")}
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
-        onTouchCancel={onTouchEnd}
+        style={incomingStyle}
       >
         {children}
       </div>
