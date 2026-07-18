@@ -77,7 +77,7 @@ export function Header() {
             </Link>
             <div className="header-brand__tagline">
               <span className="header-brand__flourish" aria-hidden="true" />
-              <span>The Art of India</span>
+              <span>Preserving India's Living Heritage</span>
               <span className="header-brand__flourish" aria-hidden="true" />
             </div>
           </div>

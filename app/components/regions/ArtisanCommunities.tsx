@@ -1,35 +1,41 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useRef } from "react";
 
-import { HeartIcon } from "@/app/components/icons/HeaderIcons";
 import { SectionHeading } from "@/app/components/SectionHeading";
 
 export type ArtisanCommunity = {
   name: string;
-  craft: string;
+  description: string;
+  slug: string;
   image: string;
 };
 
 type ArtisanCommunitiesProps = {
   communities: readonly ArtisanCommunity[];
+  region?: string;
   subtitle?: string;
 };
 
 export function ArtisanCommunities({
   communities,
+  region = "uttar-pradesh",
   subtitle = "Skilled hands preserving centuries-old techniques.",
 }: ArtisanCommunitiesProps) {
   const trackRef = useRef<HTMLDivElement>(null);
 
-  const scrollNext = () => {
+  const scrollByCard = (direction: "left" | "right") => {
     const track = trackRef.current;
     if (!track) return;
     const card = track.querySelector<HTMLElement>(".region-artisan-card");
-    const gap = Number.parseFloat(getComputedStyle(track).columnGap || "16");
+    const gap = Number.parseFloat(getComputedStyle(track).columnGap || "18");
     const amount = (card?.offsetWidth ?? 260) + gap;
-    track.scrollBy({ left: amount, behavior: "smooth" });
+    track.scrollBy({
+      left: direction === "left" ? -amount : amount,
+      behavior: "smooth",
+    });
   };
 
   return (
@@ -41,42 +47,52 @@ export function ArtisanCommunities({
         title="ARTISAN COMMUNITIES"
         titleId="artisan-communities-title"
       />
-      <p className="region-artisans__subtitle">{subtitle}</p>
+      {subtitle ? (
+        <p className="region-artisans__subtitle">{subtitle}</p>
+      ) : null}
 
       <div className="region-artisans__carousel">
+        <button
+          type="button"
+          className="region-artisans__nav region-artisans__nav--prev"
+          onClick={() => scrollByCard("left")}
+          aria-label="Previous artisan communities"
+        >
+          <span aria-hidden="true">‹</span>
+        </button>
+
         <div ref={trackRef} className="region-artisans__track">
           {communities.map((community) => (
-            <article key={community.name} className="region-artisan-card">
+            <article key={community.slug} className="region-artisan-card">
               <div className="region-artisan-card__media">
                 <Image
                   src={community.image}
-                  alt={`${community.name} — ${community.craft}`}
+                  alt={community.name}
                   fill
-                  sizes="(max-width: 640px) 48vw, 280px"
+                  sizes="(max-width: 640px) 70vw, (max-width: 1100px) 40vw, 280px"
                   className="region-artisan-card__image"
                 />
-                <button
-                  type="button"
-                  className="region-artisan-card__wishlist"
-                  aria-label={`Save ${community.name}`}
-                >
-                  <HeartIcon className="region-artisan-card__wishlist-icon" />
-                </button>
               </div>
-              <p className="region-artisan-card__label">
-                {community.name}{" "}
-                <span className="region-artisan-card__craft">
-                  ({community.craft})
-                </span>
-              </p>
+              <div className="region-artisan-card__body">
+                <h3 className="region-artisan-card__name">{community.name}</h3>
+                <p className="region-artisan-card__desc">
+                  {community.description}
+                </p>
+                <Link
+                  href={`/shop?region=${region}&community=${community.slug}`}
+                  className="region-artisan-card__cta"
+                >
+                  Know More
+                </Link>
+              </div>
             </article>
           ))}
         </div>
 
         <button
           type="button"
-          className="region-artisans__nav"
-          onClick={scrollNext}
+          className="region-artisans__nav region-artisans__nav--next"
+          onClick={() => scrollByCard("right")}
           aria-label="Next artisan communities"
         >
           <span aria-hidden="true">›</span>

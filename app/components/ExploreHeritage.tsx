@@ -3,8 +3,9 @@ import Link from "next/link";
 const REGIONS = [
   { label: "Rajasthan", href: "/regions/rajasthan" },
   { label: "Kashmir", href: "/regions/kashmir" },
-  { label: "Gujarat (Kutch)", href: "/regions/gujarat" },
-  { label: "Uttar Pradesh", href: "/regions/uttar-pradesh-bhadohi" },
+  { label: "Gujarat", href: "/regions/gujarat" },
+  { label: "Uttar Pradesh", href: "/regions/uttar-pradesh" },
+  { label: "Bihar", href: "/regions/bihar" },
   { label: "West Bengal", href: "/regions/west-bengal" },
   { label: "Odisha", href: "/regions/odisha" },
   { label: "Karnataka", href: "/regions/karnataka" },

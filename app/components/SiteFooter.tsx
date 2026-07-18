@@ -109,7 +109,7 @@ export function SiteFooter() {
             <Link href="/" className="footer-brand__name">
               ANTIQUE BHARAT
             </Link>
-            <p className="footer-brand__tagline">The Art of India</p>
+            <p className="footer-brand__tagline">Preserving India's Living Heritage</p>
             <p className="footer-brand__blurb">
               Bringing you the finest handcrafted treasures, deeply rooted in
               Indian heritage and culture.

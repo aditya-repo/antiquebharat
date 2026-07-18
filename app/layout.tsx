@@ -20,8 +20,8 @@ const cinzel = Cinzel({
 });
 
 export const metadata: Metadata = {
-  title: "Antique Bharat | The Art of India",
-  description: "A vintage-themed Indian e-commerce store",
+  title: "Antique Bharat | Preserving India's Living Heritage",
+  description: "Preserving India's Living Heritage",
 };
 
 export default function RootLayout({

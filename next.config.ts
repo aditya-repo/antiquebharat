@@ -10,6 +10,15 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async redirects() {
+    return [
+      {
+        source: "/regions/uttar-pradesh-bhadohi",
+        destination: "/regions/uttar-pradesh",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
