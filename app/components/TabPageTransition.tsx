@@ -176,9 +176,9 @@ export function TabPageTransition({ children }: TabPageTransitionProps) {
 
   useEffect(() => {
     const node = document.querySelector(".tab-page-viewport");
-    if (!node) return;
+    if (!(node instanceof HTMLElement)) return;
 
-    const onMove = (event: TouchEvent) => {
+    const onMove = (event: Event) => {
       const start = touchRef.current;
       if (!start || start.ignore || start.locked !== "h") return;
       event.preventDefault();
