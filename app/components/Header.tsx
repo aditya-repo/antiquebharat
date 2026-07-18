@@ -4,15 +4,14 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { SearchIcon, UserIcon } from "@/app/components/icons/HeaderIcons";
-import { LotusIcon } from "@/app/components/icons/LotusIcon";
 import { MandalaIcon } from "@/app/components/icons/MandalaIcon";
 
 const NAV_LINKS = [
-  { label: "HOME", href: "/" },
-  { label: "SHOP", href: "/shop" },
-  { label: "COLLECTIONS", href: "/collections" },
-  { label: "ABOUT US", href: "/about" },
-  { label: "CONTACT", href: "/contact" },
+  { label: "SHOPS", href: "/shops" },
+  { label: "REGIONS", href: "/regions" },
+  { label: "ARTISAN", href: "/artisan" },
+  { label: "HERITAGE JOURNAL", href: "/heritage-journal" },
+  { label: "OUR STORY", href: "/our-story" },
 ] as const;
 
 function MenuIcon({ open }: { open: boolean }) {
@@ -73,7 +72,6 @@ export function Header() {
       <div className="header-main">
         <div className="header-main__inner">
           <div className="header-brand">
-            <LotusIcon className="header-brand__icon" />
             <Link href="/" className="header-brand__name">
               ANTIQUE BHARAT
             </Link>
@@ -84,19 +82,7 @@ export function Header() {
             </div>
           </div>
 
-          <nav className="header-nav header-nav--desktop" aria-label="Main navigation">
-            <ul className="header-nav__list">
-              {NAV_LINKS.map((link) => (
-                <li key={link.href}>
-                  <Link href={link.href} className="header-nav__link">
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </nav>
-
-          <div className="header-actions">
+          <div className="header-center">
             <label className="header-search header-search--inline">
               <span className="sr-only">Search for products</span>
               <input
@@ -106,22 +92,38 @@ export function Header() {
               />
               <SearchIcon className="header-search__icon" />
             </label>
+          </div>
 
-            <div className="header-actions__icons">
-              <Link href="/account" className="header-icon-btn" aria-label="Account">
-                <UserIcon className="header-icon-btn__icon" />
-              </Link>
+          <div className="header-end">
+            <nav className="header-nav header-nav--desktop" aria-label="Main navigation">
+              <ul className="header-nav__list">
+                {NAV_LINKS.map((link) => (
+                  <li key={link.href}>
+                    <Link href={link.href} className="header-nav__link">
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </nav>
 
-              <button
-                type="button"
-                className="header-menu-btn"
-                aria-label={menuOpen ? "Close menu" : "Open menu"}
-                aria-expanded={menuOpen}
-                aria-controls="mobile-nav"
-                onClick={() => setMenuOpen((open) => !open)}
-              >
-                <MenuIcon open={menuOpen} />
-              </button>
+            <div className="header-actions">
+              <div className="header-actions__icons">
+                <Link href="/account" className="header-icon-btn" aria-label="Account">
+                  <UserIcon className="header-icon-btn__icon" />
+                </Link>
+
+                <button
+                  type="button"
+                  className="header-menu-btn"
+                  aria-label={menuOpen ? "Close menu" : "Open menu"}
+                  aria-expanded={menuOpen}
+                  aria-controls="mobile-nav"
+                  onClick={() => setMenuOpen((open) => !open)}
+                >
+                  <MenuIcon open={menuOpen} />
+                </button>
+              </div>
             </div>
           </div>
         </div>
