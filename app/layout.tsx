@@ -35,8 +35,8 @@ export default function RootLayout({
     <html lang="en" className={`${cormorant.variable} ${cinzel.variable} h-full`}>
       <body className="min-h-full">
         <JhumarDecor />
-        <Header />
         <TabPageTransition>
+          <Header />
           {children}
           <SiteFooter />
         </TabPageTransition>

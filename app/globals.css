@@ -4509,6 +4509,10 @@ main.not-found-page {
 }
 
 @media (max-width: 1100px) {
+  .tab-page-shell {
+    overflow-x: clip;
+  }
+
   .tab-page-transition--from-right {
     animation: tab-slide-from-right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }

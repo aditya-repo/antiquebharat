@@ -52,5 +52,9 @@ export function TabPageTransition({ children }: TabPageTransitionProps) {
     return () => window.clearTimeout(timer);
   }, [pathname]);
 
-  return <div className={animClass || undefined}>{children}</div>;
+  return (
+    <div className={animClass ? `tab-page-shell ${animClass}` : "tab-page-shell"}>
+      {children}
+    </div>
+  );
 }
