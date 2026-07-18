@@ -3,6 +3,7 @@ import { Cinzel, Cormorant_Garamond } from "next/font/google";
 
 import { Header } from "@/app/components/Header";
 import { JhumarDecor } from "@/app/components/JhumarDecor";
+import { MobileBottomNav } from "@/app/components/MobileBottomNav";
 import { SiteFooter } from "@/app/components/SiteFooter";
 
 import "./globals.css";
@@ -36,6 +37,7 @@ export default function RootLayout({
         <Header />
         {children}
         <SiteFooter />
+        <MobileBottomNav />
       </body>
     </html>
   );
