@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import {
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type CSSProperties,
@@ -30,10 +31,8 @@ const CAROUSEL_SELECTOR = [
   "[data-carousel]",
 ].join(",");
 
-const SWIPE_MIN_DISTANCE = 72;
-const DRAG_RESISTANCE = 0.82;
-const EXIT_MS = 280;
-const ENTER_MS = 520;
+const SWIPE_MIN_DISTANCE = 70;
+const PAIR_MS = 380;
 const MOBILE_QUERY = "(max-width: 1100px)";
 
 type TabPageTransitionProps = {
@@ -45,6 +44,11 @@ type TouchState = {
   y: number;
   ignore: boolean;
   locked: "none" | "h" | "v";
+};
+
+type PendingNav = {
+  href: string;
+  direction: "left" | "right";
 };
 
 function isInsideCarousel(target: EventTarget | null) {
@@ -66,76 +70,162 @@ function setTabSlideDirection(direction: "left" | "right") {
 export function TabPageTransition({ children }: TabPageTransitionProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const previousPath = useRef(pathname);
+  const shellRef = useRef<HTMLDivElement>(null);
+  const outgoingHostRef = useRef<HTMLDivElement>(null);
   const touchStart = useRef<TouchState | null>(null);
   const dragXRef = useRef(0);
-  const exitingRef = useRef(false);
+  const busyRef = useRef(false);
+  const pendingNav = useRef<PendingNav | null>(null);
+  const previousPath = useRef(pathname);
 
-  const [animClass, setAnimClass] = useState("");
   const [dragX, setDragX] = useState(0);
   const [dragging, setDragging] = useState(false);
-  const [exiting, setExiting] = useState<"left" | "right" | null>(null);
+  const [pairing, setPairing] = useState(false);
+  const [pairDirection, setPairDirection] = useState<"left" | "right">("left");
 
-  useEffect(() => {
-    if (previousPath.current === pathname) return;
+  const clearOutgoing = () => {
+    const host = outgoingHostRef.current;
+    if (!host) return;
+    host.className = "tab-page-outgoing-host";
+    host.innerHTML = "";
+  };
 
-    let direction = "left";
-    try {
-      direction = sessionStorage.getItem("mobile-tab-slide") || "left";
-      sessionStorage.removeItem("mobile-tab-slide");
-    } catch {
-      /* ignore */
+  const captureOutgoing = (direction: "left" | "right") => {
+    const shell = shellRef.current;
+    const host = outgoingHostRef.current;
+    if (!shell || !host) return;
+
+    host.innerHTML = "";
+    const scroller = document.createElement("div");
+    scroller.className = "tab-page-outgoing__scroller";
+    scroller.style.transform = `translateY(-${window.scrollY}px)`;
+
+    const clone = shell.cloneNode(true) as HTMLElement;
+    clone.classList.add("tab-page-outgoing__clone");
+    clone.removeAttribute("style");
+    scroller.appendChild(clone);
+    host.appendChild(scroller);
+    host.className = `tab-page-outgoing-host is-active tab-page-outgoing-host--${direction}`;
+  };
+
+  const beginPairTransition = (direction: "left" | "right", href: string) => {
+    if (busyRef.current) return;
+
+    if (!isMobileViewport()) {
+      setTabSlideDirection(direction);
+      router.push(href);
+      return;
     }
 
-    setDragX(0);
+    busyRef.current = true;
+    pendingNav.current = { href, direction };
     setDragging(false);
-    setExiting(null);
+    setDragX(0);
     dragXRef.current = 0;
-    exitingRef.current = false;
+    setPairDirection(direction);
+    setTabSlideDirection(direction);
+    captureOutgoing(direction);
+    router.push(href);
+  };
 
-    if (direction === "none") {
+  // Place incoming off-screen before paint when route changes during a pair transition
+  useLayoutEffect(() => {
+    if (previousPath.current === pathname) return;
+
+    const pending = pendingNav.current;
+    if (!pending || !busyRef.current) {
       previousPath.current = pathname;
       return;
     }
 
-    if (direction !== "left" && direction !== "right") {
-      const prevIndex = getMobileTabIndex(previousPath.current);
-      const nextIndex = getMobileTabIndex(pathname);
-      if (prevIndex >= 0 && nextIndex >= 0 && prevIndex !== nextIndex) {
-        direction = nextIndex > prevIndex ? "left" : "right";
-      } else {
-        direction = "left";
-      }
+    window.scrollTo(0, 0);
+    setPairing(true);
+
+    const shell = shellRef.current;
+    if (shell) {
+      shell.classList.remove("is-sliding-in");
+      shell.classList.add(
+        pending.direction === "left"
+          ? "tab-page-shell--park-left"
+          : "tab-page-shell--park-right",
+      );
     }
-
-    setAnimClass(
-      direction === "right"
-        ? "tab-page-transition tab-page-transition--from-left"
-        : "tab-page-transition tab-page-transition--from-right",
-    );
-
-    const timer = window.setTimeout(() => setAnimClass(""), ENTER_MS);
-    previousPath.current = pathname;
-
-    return () => window.clearTimeout(timer);
   }, [pathname]);
 
-  const goToTab = (nextIndex: number, direction: "left" | "right") => {
-    if (nextIndex < 0 || nextIndex >= MOBILE_TABS.length) return;
-    if (exitingRef.current) return;
+  // Animate both layers after incoming is parked off-screen
+  useEffect(() => {
+    if (previousPath.current === pathname) return;
 
-    exitingRef.current = true;
-    setDragging(false);
-    setExiting(direction);
-    setTabSlideDirection(direction);
+    const pending = pendingNav.current;
+    previousPath.current = pathname;
 
-    window.setTimeout(() => {
-      router.push(MOBILE_TABS[nextIndex].href);
-    }, EXIT_MS);
-  };
+    if (!pending || !busyRef.current) {
+      pendingNav.current = null;
+      busyRef.current = false;
+      clearOutgoing();
+      setPairing(false);
+      return;
+    }
+
+    const host = outgoingHostRef.current;
+    const shell = shellRef.current;
+
+    const start = window.requestAnimationFrame(() => {
+      host?.classList.add("is-sliding");
+      if (shell) {
+        shell.classList.add("is-sliding-in");
+        shell.classList.remove(
+          "tab-page-shell--park-left",
+          "tab-page-shell--park-right",
+        );
+      }
+    });
+
+    const timer = window.setTimeout(() => {
+      clearOutgoing();
+      shell?.classList.remove("is-sliding-in");
+      setPairing(false);
+      pendingNav.current = null;
+      busyRef.current = false;
+    }, PAIR_MS);
+
+    return () => {
+      window.cancelAnimationFrame(start);
+      window.clearTimeout(timer);
+    };
+  }, [pathname]);
+
+  useEffect(() => {
+    const onClickCapture = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const tab = target.closest("a.mobile-tab-bar__tab");
+      if (!(tab instanceof HTMLAnchorElement)) return;
+      if (!isMobileViewport()) return;
+
+      const href = tab.getAttribute("href");
+      if (!href || href === pathname) return;
+
+      const nextIndex = getMobileTabIndex(href);
+      const currentIndex = getMobileTabIndex(pathname);
+      if (nextIndex < 0 || currentIndex < 0 || nextIndex === currentIndex) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      beginPairTransition(
+        nextIndex > currentIndex ? "left" : "right",
+        href,
+      );
+    };
+
+    document.addEventListener("click", onClickCapture, true);
+    return () => document.removeEventListener("click", onClickCapture, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   const onTouchStart = (event: ReactTouchEvent<HTMLDivElement>) => {
-    if (!isMobileViewport() || exitingRef.current) {
+    if (!isMobileViewport() || busyRef.current) {
       touchStart.current = null;
       return;
     }
@@ -149,12 +239,11 @@ export function TabPageTransition({ children }: TabPageTransitionProps) {
       ignore: isInsideCarousel(event.target),
       locked: "none",
     };
-    setAnimClass("");
   };
 
   const onTouchMove = (event: ReactTouchEvent<HTMLDivElement>) => {
     const start = touchStart.current;
-    if (!start || start.ignore || exitingRef.current) return;
+    if (!start || start.ignore || busyRef.current) return;
 
     const touch = event.changedTouches[0];
     if (!touch) return;
@@ -163,9 +252,8 @@ export function TabPageTransition({ children }: TabPageTransitionProps) {
     const deltaY = touch.clientY - start.y;
 
     if (start.locked === "none") {
-      if (Math.abs(deltaX) < 10 && Math.abs(deltaY) < 10) return;
-      start.locked =
-        Math.abs(deltaX) > Math.abs(deltaY) * 1.15 ? "h" : "v";
+      if (Math.abs(deltaX) < 8 && Math.abs(deltaY) < 8) return;
+      start.locked = Math.abs(deltaX) > Math.abs(deltaY) * 1.1 ? "h" : "v";
       touchStart.current = start;
     }
 
@@ -174,13 +262,12 @@ export function TabPageTransition({ children }: TabPageTransitionProps) {
     const currentIndex = getMobileTabIndex(pathname);
     if (currentIndex < 0) return;
 
-    // Edge resistance when no next/prev tab
-    let nextX = deltaX * DRAG_RESISTANCE;
+    let nextX = deltaX;
     if (
       (deltaX < 0 && currentIndex >= MOBILE_TABS.length - 1) ||
       (deltaX > 0 && currentIndex <= 0)
     ) {
-      nextX = deltaX * 0.28;
+      nextX = deltaX * 0.25;
     }
 
     dragXRef.current = nextX;
@@ -193,14 +280,7 @@ export function TabPageTransition({ children }: TabPageTransitionProps) {
     const currentDrag = dragXRef.current;
     touchStart.current = null;
 
-    if (!start || start.ignore || start.locked === "v" || exitingRef.current) {
-      setDragging(false);
-      setDragX(0);
-      dragXRef.current = 0;
-      return;
-    }
-
-    if (!isMobileViewport()) {
+    if (!start || start.ignore || start.locked === "v" || busyRef.current) {
       setDragging(false);
       setDragX(0);
       dragXRef.current = 0;
@@ -208,14 +288,7 @@ export function TabPageTransition({ children }: TabPageTransitionProps) {
     }
 
     const currentIndex = getMobileTabIndex(pathname);
-    if (currentIndex < 0) {
-      setDragging(false);
-      setDragX(0);
-      dragXRef.current = 0;
-      return;
-    }
-
-    if (Math.abs(currentDrag) < SWIPE_MIN_DISTANCE) {
+    if (currentIndex < 0 || Math.abs(currentDrag) < SWIPE_MIN_DISTANCE) {
       setDragging(false);
       setDragX(0);
       dragXRef.current = 0;
@@ -223,59 +296,57 @@ export function TabPageTransition({ children }: TabPageTransitionProps) {
     }
 
     if (currentDrag < 0) {
-      goToTab(currentIndex + 1, "left");
+      const next = currentIndex + 1;
+      if (next < MOBILE_TABS.length) {
+        beginPairTransition("left", MOBILE_TABS[next].href);
+        return;
+      }
     } else {
-      goToTab(currentIndex - 1, "right");
+      const prev = currentIndex - 1;
+      if (prev >= 0) {
+        beginPairTransition("right", MOBILE_TABS[prev].href);
+        return;
+      }
     }
+
+    setDragging(false);
+    setDragX(0);
+    dragXRef.current = 0;
   };
 
-  const shellStyle: CSSProperties | undefined = (() => {
-    if (exiting === "left") {
-      return {
-        transform: "translate3d(-108%, 0, 0) scale(0.97)",
-        opacity: 0.35,
-        transition: `transform ${EXIT_MS}ms cubic-bezier(0.32, 0.72, 0, 1), opacity ${EXIT_MS}ms ease`,
-      };
-    }
-    if (exiting === "right") {
-      return {
-        transform: "translate3d(108%, 0, 0) scale(0.97)",
-        opacity: 0.35,
-        transition: `transform ${EXIT_MS}ms cubic-bezier(0.32, 0.72, 0, 1), opacity ${EXIT_MS}ms ease`,
-      };
-    }
-    if (dragging || dragX !== 0) {
-      const progress = Math.min(1, Math.abs(dragX) / 220);
-      return {
-        transform: `translate3d(${dragX}px, 0, 0) scale(${1 - progress * 0.025})`,
-        opacity: 1 - progress * 0.2,
-        transition: dragging
-          ? "none"
-          : "transform 0.35s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.35s ease",
-      };
-    }
-    return undefined;
-  })();
-
-  const className = [
-    "tab-page-shell",
-    animClass,
-    dragging ? "is-dragging" : "",
-    exiting ? "is-exiting" : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
+  const shellStyle: CSSProperties | undefined =
+    dragging || dragX !== 0
+      ? {
+          transform: `translate3d(${dragX}px, 0, 0)`,
+          transition: dragging
+            ? "none"
+            : "transform 0.3s cubic-bezier(0.32, 0.72, 0, 1)",
+        }
+      : undefined;
 
   return (
     <div
-      className={className}
-      style={shellStyle}
-      onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
-      onTouchEnd={onTouchEnd}
-      onTouchCancel={onTouchEnd}
+      className={
+        pairing
+          ? `tab-page-viewport is-pairing is-pairing--${pairDirection}`
+          : "tab-page-viewport"
+      }
     >
-      {children}
+      <div ref={outgoingHostRef} className="tab-page-outgoing-host" aria-hidden />
+
+      <div
+        ref={shellRef}
+        className={["tab-page-shell", dragging ? "is-dragging" : ""]
+          .filter(Boolean)
+          .join(" ")}
+        style={shellStyle}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        onTouchCancel={onTouchEnd}
+      >
+        {children}
+      </div>
     </div>
   );
 }

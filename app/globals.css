@@ -4509,137 +4509,76 @@ main.not-found-page {
 }
 
 @media (max-width: 1100px) {
-  .tab-page-shell {
+  .tab-page-viewport {
     position: relative;
     overflow-x: clip;
-    will-change: transform, opacity;
-    transform-origin: center center;
+  }
+
+  .tab-page-viewport.is-pairing {
+    overflow: hidden;
+  }
+
+  .tab-page-shell {
+    position: relative;
+    will-change: transform;
   }
 
   .tab-page-shell.is-dragging > * {
     pointer-events: none;
   }
 
-  /* Staggered enter: header → body → footer */
-  .tab-page-transition--from-right .site-header,
-  .tab-page-transition--from-left .site-header {
-    animation-duration: 0.48s;
-    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
-    animation-fill-mode: both;
+  /* Park incoming off-screen before dual slide */
+  .tab-page-shell--park-left {
+    transform: translate3d(100%, 0, 0) !important;
+    transition: none !important;
   }
 
-  .tab-page-transition--from-right > *:not(.site-header):not(.site-footer),
-  .tab-page-transition--from-left > *:not(.site-header):not(.site-footer) {
-    animation-duration: 0.52s;
-    animation-delay: 0.045s;
-    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
-    animation-fill-mode: both;
+  .tab-page-shell--park-right {
+    transform: translate3d(-100%, 0, 0) !important;
+    transition: none !important;
   }
 
-  .tab-page-transition--from-right .site-footer,
-  .tab-page-transition--from-left .site-footer {
-    animation-duration: 0.56s;
-    animation-delay: 0.09s;
-    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
-    animation-fill-mode: both;
+  .tab-page-shell.is-sliding-in {
+    transition: transform 0.38s cubic-bezier(0.32, 0.72, 0, 1) !important;
+    transform: translate3d(0, 0, 0) !important;
   }
 
-  .tab-page-transition--from-right .site-header {
-    animation-name: tab-header-from-right;
+  .tab-page-outgoing-host {
+    display: none;
+    pointer-events: none;
   }
 
-  .tab-page-transition--from-right > *:not(.site-header):not(.site-footer) {
-    animation-name: tab-body-from-right;
+  .tab-page-outgoing-host.is-active {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: calc(3.75rem + env(safe-area-inset-bottom, 0px));
+    z-index: 160;
+    overflow: hidden;
+    background-color: #fffaf2;
+    background-image: url("./assets/elements/image.png");
+    background-repeat: repeat;
+    background-size: 72px auto;
+    transform: translate3d(0, 0, 0);
   }
 
-  .tab-page-transition--from-right .site-footer {
-    animation-name: tab-footer-from-right;
+  .tab-page-outgoing-host.is-sliding {
+    transition: transform 0.38s cubic-bezier(0.32, 0.72, 0, 1);
   }
 
-  .tab-page-transition--from-left .site-header {
-    animation-name: tab-header-from-left;
+  .tab-page-outgoing-host--left.is-sliding {
+    transform: translate3d(-100%, 0, 0);
   }
 
-  .tab-page-transition--from-left > *:not(.site-header):not(.site-footer) {
-    animation-name: tab-body-from-left;
+  .tab-page-outgoing-host--right.is-sliding {
+    transform: translate3d(100%, 0, 0);
   }
 
-  .tab-page-transition--from-left .site-footer {
-    animation-name: tab-footer-from-left;
-  }
-}
-
-@keyframes tab-header-from-right {
-  from {
-    opacity: 0;
-    transform: translate3d(42%, 0, 0) scale(0.985);
-    filter: brightness(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
-    filter: none;
-  }
-}
-
-@keyframes tab-body-from-right {
-  from {
-    opacity: 0;
-    transform: translate3d(56%, 0, 0) scale(0.97);
-    filter: brightness(0.94);
-  }
-  to {
-    opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
-    filter: none;
-  }
-}
-
-@keyframes tab-footer-from-right {
-  from {
-    opacity: 0;
-    transform: translate3d(64%, 0, 0) scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-}
-
-@keyframes tab-header-from-left {
-  from {
-    opacity: 0;
-    transform: translate3d(-42%, 0, 0) scale(0.985);
-    filter: brightness(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
-    filter: none;
-  }
-}
-
-@keyframes tab-body-from-left {
-  from {
-    opacity: 0;
-    transform: translate3d(-56%, 0, 0) scale(0.97);
-    filter: brightness(0.94);
-  }
-  to {
-    opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
-    filter: none;
-  }
-}
-
-@keyframes tab-footer-from-left {
-  from {
-    opacity: 0;
-    transform: translate3d(-64%, 0, 0) scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
+  .tab-page-outgoing__scroller,
+  .tab-page-outgoing__clone {
+    width: 100%;
   }
 }
 
