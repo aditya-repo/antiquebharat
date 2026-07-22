@@ -96,7 +96,7 @@ export function TrendingFeed() {
                     src={item.image}
                     alt=""
                     fill
-                    sizes="(max-width: 640px) 48vw, 360px"
+                    sizes="(max-width: 1100px) 48vw, 33vw"
                     className="trending-card__image"
                   />
                   <div className="trending-card__shade" aria-hidden="true" />

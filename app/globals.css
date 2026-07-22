@@ -4858,10 +4858,10 @@ main.not-found-page {
   }
 
   .trending-feed__collage {
-    column-count: 2;
-    column-gap: 0.75rem;
-    max-width: 720px;
-    margin-inline: auto;
+    column-count: 3;
+    column-gap: 0.85rem;
+    max-width: none;
+    margin-inline: 0;
   }
 
   .trending-feed__item {
