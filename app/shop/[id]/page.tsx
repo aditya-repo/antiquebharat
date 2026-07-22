@@ -58,6 +58,24 @@ export default async function ProductPage({ params }: ProductPageProps) {
             items={[
               { id: "story", title: "THE STORY", content: product.story },
               {
+                id: "specs",
+                title: "PRODUCT SPECIFICATION",
+                children: (
+                  <ul className="pdp-accordion__specs">
+                    {product.specs.map((spec) => (
+                      <li key={spec.label}>
+                        <span className="pdp-accordion__spec-label">
+                          {spec.label}
+                        </span>
+                        <span className="pdp-accordion__spec-value">
+                          {spec.value}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ),
+              },
+              {
                 id: "care",
                 title: "CARE INSTRUCTIONS",
                 content: product.care,

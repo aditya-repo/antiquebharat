@@ -136,3 +136,22 @@ export function ArtisanIcon({ className }: { className?: string }) {
     </svg>
   );
 }
+
+export function TrendingIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <path
+        d="M12 3.5 13.8 9.2 19.5 9.5 15.2 13.3 16.6 19 12 15.9 7.4 19 8.8 13.3 4.5 9.5 10.2 9.2 12 3.5Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}

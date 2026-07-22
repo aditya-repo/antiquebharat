@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { SearchIcon, UserIcon } from "@/app/components/icons/HeaderIcons";
@@ -42,7 +43,9 @@ function MenuIcon({ open }: { open: boolean }) {
 }
 
 export function Header() {
+  const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+  const showSearch = pathname === "/";
 
   useEffect(() => {
     document.body.style.overflow = menuOpen ? "hidden" : "";
@@ -87,22 +90,26 @@ export function Header() {
               </Link>
               <div className="header-brand__tagline">
                 <span className="header-brand__flourish" aria-hidden="true" />
-                <span>Preserving India's Living Heritage</span>
+                <span>Preserving India&apos;s Living Heritage</span>
                 <span className="header-brand__flourish" aria-hidden="true" />
               </div>
             </div>
 
-            <div className="header-center">
-              <label className="header-search header-search--inline">
-                <span className="sr-only">Search for products</span>
-                <input
-                  type="search"
-                  className="header-search__input"
-                  placeholder="Search for products..."
-                />
-                <SearchIcon className="header-search__icon" />
-              </label>
-            </div>
+            {showSearch ? (
+              <div className="header-center">
+                <label className="header-search header-search--inline">
+                  <span className="sr-only">Search for products</span>
+                  <input
+                    type="search"
+                    className="header-search__input"
+                    placeholder="Search for products..."
+                  />
+                  <SearchIcon className="header-search__icon" />
+                </label>
+              </div>
+            ) : (
+              <div className="header-center" aria-hidden="true" />
+            )}
 
             <div className="header-end">
               <nav
@@ -146,17 +153,19 @@ export function Header() {
           </div>
         </div>
 
-        <div className="header-search-bar">
-          <label className="header-search">
-            <span className="sr-only">Search for products</span>
-            <input
-              type="search"
-              className="header-search__input"
-              placeholder="Search for products..."
-            />
-            <SearchIcon className="header-search__icon" />
-          </label>
-        </div>
+        {showSearch ? (
+          <div className="header-search-bar">
+            <label className="header-search">
+              <span className="sr-only">Search for products</span>
+              <input
+                type="search"
+                className="header-search__input"
+                placeholder="Search for products..."
+              />
+              <SearchIcon className="header-search__icon" />
+            </label>
+          </div>
+        ) : null}
       </header>
 
       <button

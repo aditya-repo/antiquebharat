@@ -8,13 +8,13 @@ import {
   ArtisanIcon,
   CartIcon,
   HomeIcon,
-  RegionsIcon,
+  TrendingIcon,
   UserIcon,
 } from "@/app/components/icons/HeaderIcons";
 
 export const MOBILE_TABS = [
   { label: "Home", href: "/", Icon: HomeIcon },
-  { label: "Regions", href: "/regions", Icon: RegionsIcon },
+  { label: "Trending", href: "/trending", Icon: TrendingIcon },
   { label: "Artisan", href: "/artisan", Icon: ArtisanIcon },
   { label: "Account", href: "/account", Icon: UserIcon },
   { label: "Cart", href: "/cart", Icon: CartIcon },
